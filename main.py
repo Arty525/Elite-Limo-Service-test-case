@@ -1,4 +1,5 @@
 import time
+from urllib.parse import unquote, urlparse, parse_qs
 
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options
@@ -30,26 +31,26 @@ time.sleep(3)
 # Получаем HTML после выполнения JS
 html = driver.page_source
 
-#print(html)
 soup = BeautifulSoup(html, 'html.parser')
 
 # Далее парсим с помощью BeautifulSoup
 data = soup.find_all("h3", class_="src-components-CompanyDirectoryCard-components-Header-Header-module__title__2okBV")
-# with open("site_data.txt", "w") as f:
-#     for item in data:
-#         f.write(f"{str(item)}\n")
 
 results = {}
 for item in data:
-    results[item.text] = {"url" : item.find("a").get("href"), "staff": []}
+    results[item.text] = {"url" : item.find("a").get("href"), "website": "", "staff": []}
 
 for result in results:
-    print(results[result])
-
-for result in results:
-    url = base_url + results[result]["url"]
-    driver.get(url)
-    print(result)
+    driver.get(base_url + results[result]["url"])
+    time.sleep(3)
+    html = driver.page_source
+    soup = BeautifulSoup(html, 'html.parser')
+    links = soup.find_all("a", class_="css-spn4bz")
+    for link in links:
+        if "outbound" in link.get("href"):
+            parsed_url = urlparse(link.get("href"))
+            query_params = parse_qs(parsed_url.query)
+            results[result]["website"] = unquote(query_params['target'][0])
     try:
         while True:
             # Ждём, пока кнопка "Далее" станет кликабельной
@@ -57,10 +58,6 @@ for result in results:
                 By.XPATH,
                 "//button[@aria-label='view next team member' and not(@disabled)]"
             )
-            # next_button = driver.find_element(
-            #     By.XPATH,
-            #     "//button[@aria-label='view next team member']"
-            # )
 
             html = driver.page_source
             soup = BeautifulSoup(html, 'html.parser')
@@ -76,8 +73,6 @@ for result in results:
             # Ждём обновления контента (можно настроить точное ожидание)
             time.sleep(1)
     except NoSuchElementException:
-        html = driver.page_source
-        soup = BeautifulSoup(html, 'html.parser')
         staff = soup.find("h3",
                              class_="css-1ham2m0")
         position = soup.find("span", class_="css-1pxun7d")
@@ -88,6 +83,7 @@ for result in results:
 
 for result in results:
     print(result)
+    print(results[result]["website"])
     for person in results[result]["staff"]:
         print(f"{person["full_name"]} ({person["position"]})")
     print("==================")

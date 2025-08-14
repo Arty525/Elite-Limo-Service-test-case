@@ -1,6 +1,6 @@
 import time
 from urllib.parse import unquote, urlparse, parse_qs
-
+from src import email_getter
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
@@ -37,8 +37,8 @@ soup = BeautifulSoup(html, 'html.parser')
 data = soup.find_all("h3", class_="src-components-CompanyDirectoryCard-components-Header-Header-module__title__2okBV")
 
 results = {}
-for item in data:
-    results[item.text] = {"url" : item.find("a").get("href"), "website": "", "staff": []}
+for item in data[:5]:
+    results[item.text] = {"url" : item.find("a").get("href"), "website": "", "staff": {}}
 
 for result in results:
     driver.get(base_url + results[result]["url"])
@@ -65,7 +65,7 @@ for result in results:
             staff = soup.find("h3",
                                  class_="css-1ham2m0")
             position = soup.find("span", class_="css-1pxun7d")
-            results[result]["staff"].append({"full_name": staff.text, "position": position.text})
+            results[result]["staff"][staff.text] = {"position": position.text}
 
             # Кликаем "Далее"
             driver.execute_script("arguments[0].click();", next_button)
@@ -77,15 +77,20 @@ for result in results:
                              class_="css-1ham2m0")
         position = soup.find("span", class_="css-1pxun7d")
         if staff is not None:
-            results[result]["staff"].append({"full_name": staff.text, "position": position.text})
+            results[result]["staff"][staff.text] = {"position": position.text}
         else:
-            results[result]["staff"].append({"full_name": "", "position": ""})
+            results[result]["staff"] = {}
+driver.quit()  # Закрываем браузер
+
+for result in results:
+    print(result)
+    print(email_getter.get_links(results[result]["website"]))
 
 for result in results:
     print(result)
     print(results[result]["website"])
     for person in results[result]["staff"]:
-        print(f"{person["full_name"]} ({person["position"]})")
+        print(f"{person} | position: {results[result]["staff"].get(person).get("position")}")
     print("==================")
 
-driver.quit()  # Закрываем браузер
+
